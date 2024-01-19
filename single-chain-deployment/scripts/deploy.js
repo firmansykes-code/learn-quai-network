@@ -1,33 +1,32 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
-// will compile your contracts, add the Hardhat Runtime Environment's members to the
-// global scope, and execute the script.
-const hre = require("hardhat");
+const hre = require('hardhat');
+const quais = require('quais');
+const { pollFor } = require('quais-polling');
+const GreeterJson = require('../artifacts/contracts/Greeter.sol/Greeter.json');
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
+  const quaisProvider = new quais.providers.JsonRpcProvider(hre.network.config.url);
+  const walletWithProvider = new quais.Wallet(hre.network.config.accounts[0], quaisProvider);
+  await quaisProvider.ready;
 
-  const lockedAmount = hre.ethers.parseEther("0.001");
-
-  const lock = await hre.ethers.deployContract("Lock", [unlockTime], {
-    value: lockedAmount,
+  const QuaisContract = new quais.ContractFactory(GreeterJson.abi, GreeterJson.bytecode, walletWithProvider);
+  const quaisContract = await QuaisContract.deploy('Hello Quai', {
+    gasLimit: 1000000,
   });
 
-  await lock.waitForDeployment();
-
-  console.log(
-    `Lock with ${ethers.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
+  // Use quais-polling to wait for contract to be deployed
+  const deployReceipt = await pollFor(
+    quaisProvider, // provider passed to poller
+    'getTransactionReceipt', // method to call on provider
+    [quaisContract.deployTransaction.hash], // params to pass to method
+    1.5, // initial polling interval in seconds
+    1 // request timeout in seconds
   );
+  console.log('Contract deployed to address: ', deployReceipt.contractAddress);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .then(() => process.exit(0))
+  .catch(error => {
+    console.error(error);
+    process.exit(1);
+  });

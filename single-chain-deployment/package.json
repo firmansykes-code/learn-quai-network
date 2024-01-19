@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "dotenv": "^16.3.1",
+    "elliptic": "^6.0.0",
     "quai-hardhat-plugin": "^1.0.3",
     "quais": "^0.1.17",
     "quais-polling": "^1.0.4"
